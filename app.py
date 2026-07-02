@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
+from services.mysql_service import save_invoice
 
 from services.sqlserver_service import (
     save_invoice,
