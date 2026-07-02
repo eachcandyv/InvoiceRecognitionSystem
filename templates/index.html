@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>發票影像辨識系統</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft JhengHei";
+            background: #f3f5f7;
+        }
+
+        .container {
+            display: flex;
+            width: 1200px;
+            margin: 40px auto;
+            gap: 30px;
+        }
+
+        .left, .right {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,.1);
+        }
+
+        .left {
+            width: 360px;
+        }
+
+        .right {
+            flex: 1;
+        }
+
+        h1, h2 {
+            margin-top: 0;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        input[type=file] {
+            width: 100%;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        .card {
+            margin-top: 20px;
+            border-radius: 15px;
+            background: #fff8d9;
+            padding: 20px;
+            border: 1px solid #f1d66b;
+        }
+
+        .number {
+            color: red;
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .first {
+            color: blue;
+            font-size: 30px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        hr {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="left">
+        <h1>發票影像辨識系統</h1>
+
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+
+            <h3>請選擇辨識方式</h3>
+
+            <label>
+                <input type="radio" name="invoice_type" value="electronic_qr" checked>
+                電子發票（QR Code）
+            </label>
+
+            <br><br>
+
+            <label>
+                <input type="radio" name="invoice_type" value="ocr">
+                影像辨識 OCR（電子 / 傳統發票）
+            </label>
+
+            <br><br>
+
+            <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf" required>
+
+            <br><br>
+
+            <button type="submit">開始辨識</button>
+
+        </form>
+    </div>
+
+    <div class="right">
+
+        <h2>📢 歷年統一發票中獎號碼</h2>
+
+        <label>年份：</label>
+        <select id="yearSelect" onchange="updateMonthOptions(); loadWinner();">
+            {% for year in years %}
+                <option value="{{ year }}" {% if year == default_year %}selected{% endif %}>
+                    {{ year }}年
+                </option>
+            {% endfor %}
+        </select>
+
+        <label style="margin-left:15px;">期別：</label>
+        <select id="monthSelect" onchange="loadWinner()"></select>
+
+        <div class="card">
+
+            <h3 id="periodTitle">資料載入中...</h3>
+
+            <hr>
+
+            <p>🏆 特別獎</p>
+            <div class="number" id="specialPrize">-</div>
+
+            <hr>
+
+            <p>🥈 特獎</p>
+            <div class="number" id="grandPrize">-</div>
+
+            <hr>
+
+            <p>🥇 頭獎</p>
+            <div class="first" id="firstPrize1">-</div>
+            <div class="first" id="firstPrize2">-</div>
+            <div class="first" id="firstPrize3">-</div>
+
+            <div id="sixthPrizeArea">
+                <hr>
+                <p>🎁 增開六獎</p>
+                <div id="sixthPrize">-</div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    const defaultMonth = "{{ default_month }}";
+
+    function updateMonthOptions() {
+        const year = document.getElementById("yearSelect").value;
+        const monthSelect = document.getElementById("monthSelect");
+
+        monthSelect.innerHTML = "";
+
+        let months = [];
+
+        if (year === "115") {
+            months = [
+                { value: "02", text: "1-2月" },
+                { value: "04", text: "3-4月" }
+            ];
+        } else if (year === "101") {
+            months = [
+                { value: "04", text: "3-4月" },
+                { value: "06", text: "5-6月" },
+                { value: "08", text: "7-8月" },
+                { value: "10", text: "9-10月" },
+                { value: "12", text: "11-12月" }
+            ];
+        } else {
+            months = [
+                { value: "02", text: "1-2月" },
+                { value: "04", text: "3-4月" },
+                { value: "06", text: "5-6月" },
+                { value: "08", text: "7-8月" },
+                { value: "10", text: "9-10月" },
+                { value: "12", text: "11-12月" }
+            ];
+        }
+
+        months.forEach(m => {
+            const option = document.createElement("option");
+            option.value = m.value;
+            option.text = m.text;
+            monthSelect.appendChild(option);
+        });
+
+        if (months.some(m => m.value === defaultMonth)) {
+            monthSelect.value = defaultMonth;
+        } else {
+            monthSelect.value = months[0].value;
+        }
+    }
+
+    function loadWinner() {
+        const year = document.getElementById("yearSelect").value;
+        const month = document.getElementById("monthSelect").value;
+        const period = year + month;
+
+        document.getElementById("periodTitle").innerText = "資料載入中...";
+        document.getElementById("specialPrize").innerText = "-";
+        document.getElementById("grandPrize").innerText = "-";
+        document.getElementById("firstPrize1").innerText = "-";
+        document.getElementById("firstPrize2").innerText = "-";
+        document.getElementById("firstPrize3").innerText = "-";
+        document.getElementById("sixthPrize").innerText = "-";
+
+        if (parseInt(year) >= 111) {
+            document.getElementById("sixthPrizeArea").style.display = "none";
+        } else {
+            document.getElementById("sixthPrizeArea").style.display = "block";
+        }
+
+        fetch("/api/winning?period=" + period)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("periodTitle").innerText =
+                    year + "年 " + getMonthText(month);
+
+                if (!data.success) {
+                    document.getElementById("specialPrize").innerText = data.message;
+                    return;
+                }
+
+                document.getElementById("specialPrize").innerText = data.special_prize || "-";
+                document.getElementById("grandPrize").innerText = data.grand_prize || "-";
+                document.getElementById("firstPrize1").innerText = data.first_prize1 || "-";
+                document.getElementById("firstPrize2").innerText = data.first_prize2 || "-";
+                document.getElementById("firstPrize3").innerText = data.first_prize3 || "-";
+
+                let sixth = [
+                    data.sixth_prize1,
+                    data.sixth_prize2,
+                    data.sixth_prize3
+                ].filter(x => x && x !== "None").join("、");
+
+                if (parseInt(year) < 111) {
+                    document.getElementById("sixthPrize").innerText = sixth || "無";
+                }
+            })
+            .catch(error => {
+                document.getElementById("periodTitle").innerText =
+                    year + "年 " + getMonthText(month);
+                document.getElementById("specialPrize").innerText = "查詢失敗";
+            });
+    }
+
+    function getMonthText(month) {
+        const map = {
+            "02": "1-2月",
+            "04": "3-4月",
+            "06": "5-6月",
+            "08": "7-8月",
+            "10": "9-10月",
+            "12": "11-12月"
+        };
+        return map[month];
+    }
+
+    window.onload = function () {
+        updateMonthOptions();
+        loadWinner();
+    };
+</script>
+
+</body>
+</html>

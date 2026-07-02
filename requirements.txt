@@ -1,0 +1,7 @@
+Flask
+pytesseract
+opencv-python
+Pillow
+PyMuPDF
+firebase-admin
+pyzbar
