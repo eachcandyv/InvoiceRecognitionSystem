@@ -5,7 +5,8 @@ from datetime import datetime
 
 from services.mysql_service import (
     save_invoice,
-    invoice_exists
+    invoice_exists,
+    init_db
 )
 
 from services.lottery_service import (
@@ -38,6 +39,10 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "pdf"}
 
 
+with app.app_context():
+    init_db()
+
+
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -45,7 +50,6 @@ def allowed_file(filename):
 @app.route("/")
 def index():
     current_year = datetime.now().year - 1911
-
     years = [str(year) for year in range(current_year, 100, -1)]
 
     return render_template(
@@ -153,12 +157,20 @@ def upload_file():
 
 @app.route("/save", methods=["POST"])
 def save():
-    invoice_type = request.form["invoice_type"]
-    invoice_number = request.form["invoice_number"]
-    invoice_date = request.form["invoice_date"]
-    invoice_period = request.form["invoice_period"]
-    prize_type = request.form["prize_type"]
-    prize_amount = request.form["prize_amount"]
+    invoice_type = request.form.get("invoice_type", "")
+    invoice_number = request.form.get("invoice_number", "")
+    invoice_date = request.form.get("invoice_date", "")
+    invoice_period = request.form.get("invoice_period", "")
+    prize_type = request.form.get("prize_type", "")
+    prize_amount = request.form.get("prize_amount", "0")
+
+    if not invoice_number:
+        return """
+        <script>
+            alert("發票號碼空白，無法存入！");
+            window.location.href = "/";
+        </script>
+        """
 
     if invoice_exists(invoice_number):
         return """
@@ -167,49 +179,52 @@ def save():
             window.location.href = "/";
         </script>
         """
+
     if prize_type in ["查無此期別或尚未開獎", "查詢失敗", "尚未開獎"]:
+        prize_amount = "0"
         display_prize_amount = "尚未開獎"
     elif prize_type == "未中獎":
+        prize_amount = "0"
         display_prize_amount = "—"
     else:
         display_prize_amount = f"{prize_amount} 元"
+
     save_invoice(
-        invoice_number,
-        invoice_date,
-        invoice_period,
-        prize_type,
-        prize_amount
+        invoice_number=invoice_number,
+        invoice_date=invoice_date,
+        invoice_period=invoice_period,
+        prize_type=prize_type,
+        prize_amount=prize_amount,
+        invoice_type=invoice_type
     )
-    if invoice_exists(invoice_number):
-        return f"""
-        <!DOCTYPE html>
-        <html lang="zh-Hant">
-        <head>
-            <meta charset="UTF-8">
-            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        </head>
-        <body>
 
-        <script>
-        Swal.fire({{
-            icon: 'success',
-            title: '存入成功！',
-            html: `
-                <b>發票號碼：</b>{invoice_number}<br><br>
-                <b>發票日期：</b>{invoice_date}<br><br>
-                <b>發票期別：</b>{invoice_period}<br><br>
-                <b>獎項：</b>{prize_type}<br><br>
-                <b>獎金：</b>{display_prize_amount}
-            `,
-            confirmButtonText: '返回首頁'
-        }}).then(() => {{
-            window.location.href = "/";
-        }});
-        </script>
-
-        </body>
-        </html>
-        """
+    return f"""
+    <!DOCTYPE html>
+    <html lang="zh-Hant">
+    <head>
+        <meta charset="UTF-8">
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    </head>
+    <body>
+    <script>
+    Swal.fire({{
+        icon: 'success',
+        title: '存入成功！',
+        html: `
+            <b>發票號碼：</b>{invoice_number}<br><br>
+            <b>發票日期：</b>{invoice_date}<br><br>
+            <b>發票期別：</b>{invoice_period}<br><br>
+            <b>獎項：</b>{prize_type}<br><br>
+            <b>獎金：</b>{display_prize_amount}
+        `,
+        confirmButtonText: '返回首頁'
+    }}).then(() => {{
+        window.location.href = "/";
+    }});
+    </script>
+    </body>
+    </html>
+    """
 
 
 if __name__ == "__main__":

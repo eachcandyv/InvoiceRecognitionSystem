@@ -1,26 +1,61 @@
 import os
 import mysql.connector
+from mysql.connector import Error
+from urllib.parse import urlparse
 
 
 def get_connection():
+    mysql_url = os.environ.get("MYSQL_URL") or os.environ.get("DATABASE_URL")
+
+    if mysql_url:
+        url = urlparse(mysql_url)
+        return mysql.connector.connect(
+            host=url.hostname,
+            port=url.port or 3306,
+            user=url.username,
+            password=url.password,
+            database=url.path.replace("/", "")
+        )
+
     return mysql.connector.connect(
-        host=os.getenv("MYSQLHOST"),
-        port=int(os.getenv("MYSQLPORT", 3306)),
-        user=os.getenv("MYSQLUSER"),
-        password=os.getenv("MYSQLPASSWORD"),
-        database=os.getenv("MYSQLDATABASE")
+        host=os.environ.get("MYSQLHOST"),
+        port=int(os.environ.get("MYSQLPORT", 3306)),
+        user=os.environ.get("MYSQLUSER"),
+        password=os.environ.get("MYSQLPASSWORD"),
+        database=os.environ.get("MYSQLDATABASE")
     )
+
+
+def init_db():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            invoice_number VARCHAR(20) NOT NULL UNIQUE,
+            invoice_date VARCHAR(20),
+            invoice_period VARCHAR(20),
+            prize_type VARCHAR(50),
+            prize_amount INT DEFAULT 0,
+            invoice_type VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 
 def invoice_exists(invoice_number):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT COUNT(*)
-        FROM invoices
-        WHERE invoice_number = %s
-    """, (invoice_number,))
+    cursor.execute(
+        "SELECT COUNT(*) FROM invoices WHERE invoice_number = %s",
+        (invoice_number,)
+    )
 
     count = cursor.fetchone()[0]
 
@@ -30,56 +65,44 @@ def invoice_exists(invoice_number):
     return count > 0
 
 
-def save_invoice(invoice_number, invoice_date, invoice_period, prize_type, prize_amount):
+def save_invoice(
+    invoice_number,
+    invoice_date,
+    invoice_period,
+    prize_type,
+    prize_amount,
+    invoice_type=""
+):
     conn = get_connection()
     cursor = conn.cursor()
 
-    if prize_type in ["查無此期別或尚未開獎", "查詢失敗", "尚未開獎"]:
-        final_prize_amount = None
-    elif prize_type == "未中獎":
-        final_prize_amount = 0
-    else:
-        final_prize_amount = int(prize_amount)
-
-    cursor.execute("""
-        INSERT INTO invoices
-        (invoice_number, invoice_date, invoice_period, prize_type, prize_amount)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (
-        invoice_number,
-        invoice_date,
-        invoice_period,
-        prize_type,
-        final_prize_amount
-    ))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-
-def get_all_winning_numbers():
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("""
-        SELECT
+    try:
+        cursor.execute("""
+            INSERT INTO invoices (
+                invoice_number,
+                invoice_date,
+                invoice_period,
+                prize_type,
+                prize_amount,
+                invoice_type
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            invoice_number,
+            invoice_date,
             invoice_period,
-            special_prize,
-            grand_prize,
-            first_prize1,
-            first_prize2,
-            first_prize3,
-            sixth_prize1,
-            sixth_prize2,
-            sixth_prize3
-        FROM winning_numbers
-        ORDER BY invoice_period DESC
-    """)
+            prize_type,
+            int(prize_amount) if str(prize_amount).isdigit() else 0,
+            invoice_type
+        ))
 
-    rows = cursor.fetchall()
+        conn.commit()
 
-    cursor.close()
-    conn.close()
+    except Error as e:
+        conn.rollback()
+        print("MySQL 儲存錯誤：", e)
+        raise e
 
-    return rows
+    finally:
+        cursor.close()
+        conn.close()

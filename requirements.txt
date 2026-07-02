@@ -1,9 +1,11 @@
 Flask
-requests
-gunicorn
-mysql-connector-python
+pytesseract
 Pillow
 PyMuPDF
+firebase-admin
+pyzbar
+gunicorn
 opencv-python-headless
 zxing-cpp
 rapidocr_onnxruntime
+mysql-connector-python
