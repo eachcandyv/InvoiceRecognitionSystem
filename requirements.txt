@@ -1,11 +1,10 @@
 Flask
-pytesseract
-Pillow
+gunicorn
+mysql-connector-python
+opencv-python-headless
+rapidocr_onnxruntime
 PyMuPDF
+Pillow
 firebase-admin
 pyzbar
-gunicorn
-opencv-python-headless
 zxing-cpp
-rapidocr_onnxruntime
-mysql-connector-python

@@ -9,12 +9,14 @@ def get_connection():
 
     if mysql_url:
         url = urlparse(mysql_url)
+
         return mysql.connector.connect(
             host=url.hostname,
             port=url.port or 3306,
             user=url.username,
             password=url.password,
-            database=url.path.replace("/", "")
+            database=url.path.lstrip("/"),
+            charset="utf8mb4"
         )
 
     return mysql.connector.connect(
@@ -22,7 +24,8 @@ def get_connection():
         port=int(os.environ.get("MYSQLPORT", 3306)),
         user=os.environ.get("MYSQLUSER"),
         password=os.environ.get("MYSQLPASSWORD"),
-        database=os.environ.get("MYSQLDATABASE")
+        database=os.environ.get("MYSQLDATABASE"),
+        charset="utf8mb4"
     )
 
 
@@ -40,7 +43,7 @@ def init_db():
             prize_amount INT DEFAULT 0,
             invoice_type VARCHAR(100),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     """)
 
     conn.commit()
@@ -49,6 +52,9 @@ def init_db():
 
 
 def invoice_exists(invoice_number):
+    if not invoice_number:
+        return False
+
     conn = get_connection()
     cursor = conn.cursor()
 
