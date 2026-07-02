@@ -8,3 +8,6 @@ Pillow
 firebase-admin
 pyzbar
 zxing-cpp
+beautifulsoup4
+requests
+lxml
